@@ -73,6 +73,16 @@ describe('App', () => {
     expect(screen.queryByTestId('customer-reply')).not.toBeInTheDocument()
   })
 
+  it('показывает безопасный fallback, если provider info повреждён', async () => {
+    vi.stubGlobal('fetch', async (_input: RequestInfo | URL, init?: RequestInit) => {
+      const method = (init?.method ?? 'GET').toUpperCase()
+      if (method === 'GET') return jsonResponse({ provider: 'gemini', live: 'yes' })
+      return jsonResponse(successBody)
+    })
+    render(<App />)
+    await waitFor(() => expect(screen.getByTestId('provider-status')).toHaveTextContent('не определён'))
+  })
+
   it('не отправляет пустое обращение и показывает подсказку', async () => {
     const calls = stubFetch(async () => jsonResponse(successBody))
     render(<App />)
@@ -131,6 +141,43 @@ describe('App', () => {
     const input = screen.getByTestId('request-input') as HTMLTextAreaElement
     expect(input.value).toContain('12 человек')
     expect(input.value).toContain('CRM')
+  })
+
+  it('передаёт видимую историю диалога в /api/ai, не дублируя текущий запрос', async () => {
+    const calls = stubFetch(async () => jsonResponse(successBody))
+    render(<App />)
+    typeRequest('Хотим тариф для команды из 12 человек и интеграцию с CRM')
+    fireEvent.click(screen.getByTestId('analyze-button'))
+    await screen.findByTestId('customer-reply')
+
+    const post = calls.find((call) => call.method === 'POST')
+    expect(post).toBeDefined()
+    const payload = JSON.parse(post?.body ?? '{}') as { query: string; history: Array<{ text: string }> }
+    expect(payload.query).toBe('Хотим тариф для команды из 12 человек и интеграцию с CRM')
+    expect(payload.history.map((message) => message.text)).toEqual([
+      'Добрый день! Изучаем варианты для отдела продаж.',
+      'Здравствуйте! Расскажите, пожалуйста, сколько человек в команде и какие задачи важны в первую очередь.',
+    ])
+    expect(payload.history.some((message) => message.text === payload.query)).toBe(false)
+  })
+
+  it('после первого анализа предыдущая реплика уходит в следующий запрос как history', async () => {
+    const calls = stubFetch(async () => jsonResponse(successBody))
+    render(<App />)
+    typeRequest('Первый вопрос про тариф для команды')
+    fireEvent.click(screen.getByTestId('analyze-button'))
+    await screen.findByTestId('customer-reply')
+
+    typeRequest('Второй вопрос про интеграцию с CRM')
+    fireEvent.click(screen.getByTestId('analyze-button'))
+    await waitFor(() => expect(calls.filter((call) => call.method === 'POST')).toHaveLength(2))
+
+    const posts = calls.filter((call) => call.method === 'POST')
+    const payload = JSON.parse(posts[1]?.body ?? '{}') as { query: string; history: Array<{ text: string }> }
+    const texts = payload.history.map((message) => message.text)
+    expect(payload.query).toBe('Второй вопрос про интеграцию с CRM')
+    expect(texts).toContain('Первый вопрос про тариф для команды')
+    expect(texts).not.toContain('Второй вопрос про интеграцию с CRM')
   })
 
   it('очистка сбрасывает результат анализа', async () => {

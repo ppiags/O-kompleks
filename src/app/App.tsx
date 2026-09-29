@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useState } from "react"
-import type { ProviderInfoResponse } from "../shared/api/contracts"
+import type { ConversationMessage, ProviderInfoResponse } from "../shared/api/contracts"
+import { MAX_QUERY_LENGTH, MIN_QUERY_LENGTH } from "../shared/api/contracts"
+import { CLIENT_PROFILE, INITIAL_HISTORY } from "../entities/conversation/model/presets"
 import { ConversationPanel } from "../entities/conversation/ui/ConversationPanel"
 import { AnalysisPanel } from "../features/analyze-request/ui/AnalysisPanel"
 import { useAnalyzeRequest } from "../features/analyze-request/model/useAnalyzeRequest"
+import { fetchProviderInfo } from "../features/analyze-request/api/analyzeClient"
 
 const PROVIDER_LABELS: Record<ProviderInfoResponse["provider"], string> = {
   mock: "Mock",
@@ -13,7 +16,7 @@ const PROVIDER_LABELS: Record<ProviderInfoResponse["provider"], string> = {
 export function App() {
   const { status, data, error, analyze, reset } = useAnalyzeRequest()
   const [query, setQuery] = useState("")
-  const [submittedQuery, setSubmittedQuery] = useState<string | undefined>(undefined)
+  const [history, setHistory] = useState<ConversationMessage[]>(INITIAL_HISTORY)
   const [providerInfo, setProviderInfo] = useState<ProviderInfoResponse | undefined>(undefined)
   const [providerInfoFailed, setProviderInfoFailed] = useState(false)
 
@@ -21,14 +24,10 @@ export function App() {
     let cancelled = false
 
     void (async () => {
-      try {
-        const response = await fetch("/api/ai", { headers: { accept: "application/json" } })
-        if (!response.ok) throw new Error(String(response.status))
-        const info = (await response.json()) as ProviderInfoResponse
-        if (!cancelled) setProviderInfo(info)
-      } catch {
-        if (!cancelled) setProviderInfoFailed(true)
-      }
+      const info = await fetchProviderInfo()
+      if (cancelled) return
+      if (info) setProviderInfo(info)
+      else setProviderInfoFailed(true)
     })()
 
     return () => {
@@ -36,17 +35,35 @@ export function App() {
     }
   }, [])
 
-  const isValidationError = error?.code === "EMPTY_QUERY" || error?.code === "QUERY_TOO_SHORT"
+  const isValidationError =
+    error?.code === "EMPTY_QUERY" || error?.code === "QUERY_TOO_SHORT" || error?.code === "QUERY_TOO_LONG"
   const analysisStatus = isValidationError ? "idle" : status
 
   const handleAnalyze = useCallback(() => {
-    setSubmittedQuery(query.trim())
-    void analyze(query)
-  }, [analyze, query])
+    const trimmed = query.trim()
+    const isSendable = trimmed.length >= MIN_QUERY_LENGTH && trimmed.length <= MAX_QUERY_LENGTH
+
+    if (isSendable) {
+      // Отправленное сообщение становится частью видимой истории, но в API уходит
+      // только предыдущий контекст: текущий query передаётся отдельным полем.
+      setHistory((previous) => [
+        ...previous,
+        {
+          id: "msg-local-" + (previous.length + 1),
+          role: "client",
+          author: CLIENT_PROFILE.name + ", клиент",
+          time: "сейчас",
+          text: trimmed,
+        },
+      ])
+    }
+
+    void analyze(query, history)
+  }, [analyze, history, query])
 
   const handleReset = useCallback(() => {
     setQuery("")
-    setSubmittedQuery(undefined)
+    setHistory(INITIAL_HISTORY)
     reset()
   }, [reset])
 
@@ -81,7 +98,7 @@ export function App() {
       <main className="app__body">
         <ConversationPanel
           query={query}
-          submittedQuery={submittedQuery || undefined}
+          history={history}
           validationError={isValidationError ? error?.message : undefined}
           isLoading={status === "loading"}
           canReset={query.length > 0 || status !== "idle"}

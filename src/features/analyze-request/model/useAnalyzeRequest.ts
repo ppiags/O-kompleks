@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
+  MAX_QUERY_LENGTH,
   MIN_QUERY_LENGTH,
   type AnalyzeErrorCode,
   type AnalyzeSuccessResponse,
+  type ConversationMessage,
 } from '../../../shared/api/contracts'
 import { AnalyzeRequestError, analyzeRequest } from '../api/analyzeClient'
 
@@ -20,7 +22,7 @@ export interface AnalyzeState {
 }
 
 export interface UseAnalyzeRequestResult extends AnalyzeState {
-  analyze: (query: string) => Promise<void>
+  analyze: (query: string, history?: ConversationMessage[]) => Promise<void>
   reset: () => void
 }
 
@@ -39,25 +41,14 @@ export function useAnalyzeRequest(): UseAnalyzeRequestResult {
   useEffect(() => cancelInFlight, [cancelInFlight])
 
   const analyze = useCallback(
-    async (query: string) => {
+    async (query: string, history: ConversationMessage[] = []) => {
       const trimmed = query.trim()
 
-      if (trimmed.length === 0) {
+      const validationError = validateQuery(trimmed)
+      if (validationError) {
         cancelInFlight()
         requestIdRef.current += 1
-        setState({ status: 'error', error: { code: 'EMPTY_QUERY', message: 'Введите обращение клиента.' } })
-        return
-      }
-      if (trimmed.length < MIN_QUERY_LENGTH) {
-        cancelInFlight()
-        requestIdRef.current += 1
-        setState({
-          status: 'error',
-          error: {
-            code: 'QUERY_TOO_SHORT',
-            message: `Обращение слишком короткое. Опишите вопрос подробнее (минимум ${MIN_QUERY_LENGTH} символов).`,
-          },
-        })
+        setState({ status: 'error', error: validationError })
         return
       }
 
@@ -71,7 +62,7 @@ export function useAnalyzeRequest(): UseAnalyzeRequestResult {
       setState({ status: 'loading' })
 
       try {
-        const data = await analyzeRequest(trimmed, { signal: controller.signal })
+        const data = await analyzeRequest(trimmed, history, { signal: controller.signal })
         if (controller.signal.aborted || requestIdRef.current !== requestId) return
         setState({ status: 'success', data })
       } catch (error) {
@@ -98,4 +89,24 @@ export function useAnalyzeRequest(): UseAnalyzeRequestResult {
   }, [cancelInFlight])
 
   return { ...state, analyze, reset }
+}
+
+/** Общая с сервером валидация длины: те же границы, что и в /api/ai. */
+function validateQuery(query: string): AnalyzeErrorState | undefined {
+  if (query.length === 0) {
+    return { code: 'EMPTY_QUERY', message: 'Введите обращение клиента.' }
+  }
+  if (query.length < MIN_QUERY_LENGTH) {
+    return {
+      code: 'QUERY_TOO_SHORT',
+      message: `Обращение слишком короткое. Опишите вопрос подробнее (минимум ${MIN_QUERY_LENGTH} символов).`,
+    }
+  }
+  if (query.length > MAX_QUERY_LENGTH) {
+    return {
+      code: 'QUERY_TOO_LONG',
+      message: `Обращение слишком длинное (максимум ${MAX_QUERY_LENGTH} символов). Сократите текст и повторите.`,
+    }
+  }
+  return undefined
 }

@@ -120,6 +120,17 @@ describe('handleAnalyzeRequest', () => {
     for (const message of parsed) expect(message.text.length).toBeLessThanOrEqual(2000)
   })
 
+  it('ограничивает служебные поля истории (id/author/time)', () => {
+    const parsed = parseHistory({
+      history: [
+        { id: 'x'.repeat(500), role: 'client', author: 'a'.repeat(500), time: 't'.repeat(500), text: 'ok' },
+      ],
+    })
+    expect(parsed[0]?.id.length).toBeLessThanOrEqual(200)
+    expect(parsed[0]?.author.length).toBeLessThanOrEqual(200)
+    expect(parsed[0]?.time.length).toBeLessThanOrEqual(200)
+  })
+
   it('не отдаёт stack trace, если retrieval сломался', async () => {
     const poisoned = [
       {

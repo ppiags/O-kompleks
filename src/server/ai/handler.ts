@@ -8,7 +8,7 @@ import type {
   KnowledgeMatch,
   ProviderInfoResponse,
 } from '../../shared/api/contracts.js'
-import { MIN_QUERY_LENGTH } from '../../shared/api/contracts.js'
+import { MAX_QUERY_LENGTH, MIN_QUERY_LENGTH } from '../../shared/api/contracts.js'
 import knowledgeBaseJson from '../../shared/data/knowledge-base.json' with { type: 'json' }
 import { retrieveKnowledge } from '../../shared/lib/retrieval.js'
 import { isAiError } from './errors.js'
@@ -17,9 +17,9 @@ import { createAiProvider } from './providers/index.js'
 const DEFAULT_KNOWLEDGE_BASE = knowledgeBaseJson as KnowledgeItem[]
 
 /** Верхние границы входа: прототип не должен превращаться в бесплатный LLM-прокси. */
-export const MAX_QUERY_LENGTH = 2000
 export const MAX_HISTORY_MESSAGES = 20
 export const MAX_HISTORY_MESSAGE_LENGTH = 2000
+export const MAX_HISTORY_FIELD_LENGTH = 200
 
 export interface HandleAnalyzeOptions {
   env?: NodeJS.ProcessEnv
@@ -141,11 +141,18 @@ export function parseHistory(rawBody: unknown): ConversationMessage[] {
   return value
     .filter(isConversationMessage)
     .slice(-MAX_HISTORY_MESSAGES)
-    .map((message) =>
-      message.text.length > MAX_HISTORY_MESSAGE_LENGTH
-        ? { ...message, text: message.text.slice(0, MAX_HISTORY_MESSAGE_LENGTH) }
-        : message,
-    )
+    .map((message) => ({
+      ...message,
+      id: trimField(message.id),
+      author: trimField(message.author),
+      time: trimField(message.time),
+      text: message.text.slice(0, MAX_HISTORY_MESSAGE_LENGTH),
+    }))
+}
+
+/** Ограничивает служебные строки history: id/author/time не должны быть безразмерными. */
+function trimField(value: string): string {
+  return value.trim().slice(0, MAX_HISTORY_FIELD_LENGTH)
 }
 
 function isConversationMessage(value: unknown): value is ConversationMessage {

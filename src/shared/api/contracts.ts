@@ -95,3 +95,6 @@ export interface AnalyzeErrorResponse {
 
 /** Минимальная длина обращения: защищает от случайного «привет» вместо вопроса. */
 export const MIN_QUERY_LENGTH = 5
+
+/** Максимальная длина обращения. Общий контракт UI и сервера. */
+export const MAX_QUERY_LENGTH = 2000

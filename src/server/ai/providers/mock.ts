@@ -1,5 +1,5 @@
 import type { AiAnalysisInput, AiAnalysisResult, AiProvider, KnowledgeItem, ManagerUpsell } from '../../../shared/api/contracts.js'
-import { normalizeText } from '../../../shared/lib/normalize.js'
+import { normalizeText, tokenize } from '../../../shared/lib/normalize.js'
 
 /** Явные признаки обращения в поддержку: допродажа здесь неуместна. */
 const SUPPORT_SIGNALS = [
@@ -99,16 +99,53 @@ function buildReply(knowledge: KnowledgeItem[], isSupport: boolean): string {
   ].join('\n')
 }
 
+/** Числовое условие вида «В отделе больше 5 человек». */
+const NUMERIC_CONDITION = /больше\s+(\d+)/i
+
+/** Явно указанный в запросе размер команды. */
+const TEAM_SIZE = /(\d+)\s*(?:человек\w*|сотрудник\w*|менеджер\w*|пользовател\w*)/i
+
+function extractTeamSize(normalizedQuery: string): number | undefined {
+  const match = TEAM_SIZE.exec(normalizedQuery)
+  if (!match) return undefined
+  const size = Number(match[1])
+  return Number.isFinite(size) ? size : undefined
+}
+
+/**
+ * Допродажа уместна только если её проверяемые условия выполнены,
+ * а продукт действительно связан с запросом. Попадание статьи в top-N
+ * само по себе не является основанием для рекомендации.
+ */
+function isUpsellApplicable(item: KnowledgeItem, queryTokens: Set<string>, teamSize: number | undefined): boolean {
+  const upsell = item.upsell
+  if (!upsell) return false
+
+  for (const condition of upsell.conditions) {
+    const numeric = NUMERIC_CONDITION.exec(condition)
+    if (numeric) {
+      const threshold = Number(numeric[1])
+      // Условие не подтверждено запросом или не выполнено — рекомендации нет.
+      if (teamSize === undefined || teamSize <= threshold) return false
+    }
+  }
+
+  // Сигнал должен идти от темы самой статьи: «попала в top-N» — не основание.
+  return tokenize(item.title).some((token) => queryTokens.has(token))
+}
+
 function pickUpsellCandidate(knowledge: KnowledgeItem[], normalizedQuery: string): KnowledgeItem | undefined {
-  const withUpsell = knowledge.filter((item) => item.upsell !== undefined)
-  if (withUpsell.length === 0) return undefined
+  const queryTokens = new Set(tokenize(normalizedQuery))
+  const teamSize = extractTeamSize(normalizedQuery)
+  const applicable = knowledge.filter((item) => isUpsellApplicable(item, queryTokens, teamSize))
+  if (applicable.length === 0) return undefined
 
   if (ANALYTICS_SIGNALS.test(normalizedQuery)) {
-    const analytics = withUpsell.find((item) => item.upsell?.product.toLowerCase().includes('аналитик') === true)
+    const analytics = applicable.find((item) => item.upsell?.product.toLowerCase().includes('аналитик') === true)
     if (analytics) return analytics
   }
 
-  return withUpsell[0]
+  return applicable[0]
 }
 
 function buildUpsell(item: KnowledgeItem): ManagerUpsell {

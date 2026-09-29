@@ -1,9 +1,10 @@
 import type { ConversationMessage } from "../../../shared/api/contracts"
-import { CLIENT_PROFILE, DEMO_PRESETS, INITIAL_HISTORY } from "../model/presets"
+import { MAX_QUERY_LENGTH } from "../../../shared/api/contracts"
+import { CLIENT_PROFILE, DEMO_PRESETS } from "../model/presets"
 
 export interface ConversationPanelProps {
   query: string
-  submittedQuery?: string
+  history: ConversationMessage[]
   validationError?: string
   isLoading: boolean
   canReset: boolean
@@ -15,7 +16,7 @@ export interface ConversationPanelProps {
 /** Левая область: карточка клиента, история диалога, ввод и быстрые сценарии. */
 export function ConversationPanel({
   query,
-  submittedQuery,
+  history,
   validationError,
   isLoading,
   canReset,
@@ -23,19 +24,6 @@ export function ConversationPanel({
   onAnalyze,
   onReset,
 }: ConversationPanelProps) {
-  const history: ConversationMessage[] = submittedQuery
-    ? [
-        ...INITIAL_HISTORY,
-        {
-          id: "msg-submitted",
-          role: "client",
-          author: CLIENT_PROFILE.name + ", клиент",
-          time: "сейчас",
-          text: submittedQuery,
-        },
-      ]
-    : INITIAL_HISTORY
-
   return (
     <section className="dialog" aria-label="Диалог с клиентом">
       <header className="dialog__header">
@@ -101,6 +89,7 @@ export function ConversationPanel({
           data-testid="request-input"
           className="composer__input"
           rows={4}
+          maxLength={MAX_QUERY_LENGTH}
           value={query}
           placeholder="Вставьте обращение клиента…"
           onChange={(event) => onQueryChange(event.target.value)}

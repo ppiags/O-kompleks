@@ -3,13 +3,13 @@ dist
 dist-ssr
 *.local
 .vercel
-.env
-.env.*
-!.env.example
 coverage
 playwright-report
 test-results
 .superpowers
 *.tsbuildinfo
 .DS_Store
+
+# env: секреты не коммитим, пример конфигурации остаётся в репозитории
 .env*
+!.env.example

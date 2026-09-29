@@ -8,16 +8,18 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: [['list']],
   use: {
-    baseURL: 'http://localhost:5173',
+    // Отдельный детерминированный порт: E2E никогда не переиспользуют чужой dev server.
+    baseURL: 'http://localhost:4317',
     trace: 'on-first-retry',
   },
   projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
   webServer: {
-    command: 'npm run dev -- --port 5173 --strictPort',
-    url: 'http://localhost:5173',
-    // E2E всегда идут в mock-режиме и не зависят от .env или внешних LLM API.
+    command: 'npm run dev -- --port 4317 --strictPort',
+    url: 'http://localhost:4317',
+    // E2E всегда поднимают собственный сервер в mock-режиме:
+    // не зависят ни от .env, ни от уже запущенного dev server, ни от внешних LLM API.
     env: { AI_PROVIDER: 'mock' },
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     timeout: 120_000,
   },
 })

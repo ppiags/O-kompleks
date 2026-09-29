@@ -64,6 +64,33 @@ describe('useAnalyzeRequest', () => {
     expect(result.current.error?.code).toBe('QUERY_TOO_SHORT')
   })
 
+  it('не обращается к сети на слишком длинном обращении', async () => {
+    const fetchStub = vi.fn()
+    vi.stubGlobal('fetch', fetchStub)
+    const { result } = renderHook(() => useAnalyzeRequest())
+    await act(async () => {
+      await result.current.analyze('я'.repeat(2001))
+    })
+    expect(fetchStub).not.toHaveBeenCalled()
+    expect(result.current.error?.code).toBe('QUERY_TOO_LONG')
+  })
+
+  it('передаёт history в тело запроса', async () => {
+    const bodies: string[] = []
+    vi.stubGlobal('fetch', async (_input: RequestInfo | URL, init?: RequestInit) => {
+      bodies.push(String(init?.body))
+      return jsonResponse(successBody)
+    })
+    const { result } = renderHook(() => useAnalyzeRequest())
+    await act(async () => {
+      await result.current.analyze('Сколько стоит тариф для команды?', [
+        { id: 'm1', role: 'client', author: 'Клиент', time: '09:41', text: 'Добрый день!' },
+      ])
+    })
+    const payload = JSON.parse(bodies[0] ?? '{}') as { history: unknown[] }
+    expect(payload.history).toHaveLength(1)
+  })
+
   it('показывает loading, затем success', async () => {
     let resolveRequest: ((response: Response) => void) | undefined
     const fetchStub = vi.fn(

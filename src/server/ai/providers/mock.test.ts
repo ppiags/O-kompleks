@@ -37,11 +37,27 @@ describe('MockAiProvider', () => {
 
   it('для вопроса про обучение отвечает по обучению и предлагает релевантный продукт', async () => {
     const result = await provider.generateAnalysis(
-      inputFor('Подскажите, вы проводите обучение для новых сотрудников? У нас отдел продаж 5 человек.'),
+      inputFor('Подскажите, вы проводите обучение для новых сотрудников? У нас отдел продаж 6 человек.'),
     )
     expect(result.customerReply.toLowerCase()).toContain('обучен')
     expect(result.managerUpsell.recommended).toBe(true)
     expect(result.managerUpsell.product).toBeTruthy()
+  })
+
+  it('не рекомендует допродажу, если проверяемое условие статьи не выполнено (5 человек при «больше 5»)', async () => {
+    const result = await provider.generateAnalysis(
+      inputFor('Проводите ли вы обучение для новых сотрудников? У нас отдел продаж 5 человек.'),
+    )
+    expect(result.managerUpsell.recommended).toBe(false)
+    expect(result.managerUpsell.product).toBeUndefined()
+    expect(result.customerReply.toLowerCase()).toContain('обучен')
+  })
+
+  it('не рекомендует допродажу, если размер команды не подтверждён запросом', async () => {
+    const result = await provider.generateAnalysis(
+      inputFor('Проводите ли вы обучение для новых сотрудников?'),
+    )
+    expect(result.managerUpsell.recommended).toBe(false)
   })
 
   it('честно отказывается от допродажи при обращении в поддержку', async () => {

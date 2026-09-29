@@ -1,9 +1,12 @@
 import type {
+  AiProviderName,
   AnalyzeErrorCode,
   AnalyzeSuccessResponse,
+  ConversationMessage,
   KnowledgeItem,
   KnowledgeMatch,
   ManagerUpsell,
+  ProviderInfoResponse,
 } from '../../../shared/api/contracts'
 
 /** Ошибка обращения к BFF: код + безопасный для показа текст. */
@@ -34,12 +37,26 @@ export const ANALYZE_ERROR_CODES: readonly AnalyzeErrorCode[] = [
   'INTERNAL_ERROR',
 ]
 
+const PROVIDER_NAMES: readonly AiProviderName[] = ['mock', 'openai', 'deepseek']
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
 }
 
 function isNonEmptyString(value: unknown): value is string {
   return typeof value === 'string' && value.trim().length > 0
+}
+
+function isStringArray(value: unknown): value is string[] {
+  return Array.isArray(value) && value.every((item) => typeof item === 'string')
+}
+
+function isFiniteNumber(value: unknown): value is number {
+  return typeof value === 'number' && Number.isFinite(value)
+}
+
+function isProviderName(value: unknown): value is AiProviderName {
+  return typeof value === 'string' && (PROVIDER_NAMES as readonly string[]).includes(value)
 }
 
 function isManagerUpsell(value: unknown): value is ManagerUpsell {
@@ -58,36 +75,58 @@ function isKnowledgeItem(value: unknown): value is KnowledgeItem {
     isNonEmptyString(value.title) &&
     typeof value.category === 'string' &&
     typeof value.content === 'string' &&
-    Array.isArray(value.keywords)
+    isStringArray(value.keywords)
   )
 }
 
 function isKnowledgeMatch(value: unknown): value is KnowledgeMatch {
   if (!isRecord(value)) return false
-  return isKnowledgeItem(value.item) && typeof value.score === 'number' && Array.isArray(value.matchedTerms)
+  return isKnowledgeItem(value.item) && isFiniteNumber(value.score) && isStringArray(value.matchedTerms)
 }
 
 /** Runtime-проверка успешного ответа: клиент не доверяет 200 вслепую. */
 export function isAnalyzeSuccessResponse(value: unknown): value is AnalyzeSuccessResponse {
   if (!isRecord(value)) return false
+  if (!isProviderName(value.provider)) return false
   if (!isRecord(value.result)) return false
 
   const result = value.result
   if (!isNonEmptyString(result.customerReply)) return false
   if (!isManagerUpsell(result.managerUpsell)) return false
-  if (!Array.isArray(result.usedKnowledgeIds)) return false
+  if (!isStringArray(result.usedKnowledgeIds)) return false
   if (!Array.isArray(value.knowledgeMatches)) return false
 
   return value.knowledgeMatches.every(isKnowledgeMatch)
+}
+
+/** Runtime-проверка GET /api/ai: malformed ответ не должен попасть в UI. */
+export function isProviderInfoResponse(value: unknown): value is ProviderInfoResponse {
+  if (!isRecord(value)) return false
+  if (!isProviderName(value.provider)) return false
+  return typeof value.live === 'boolean'
 }
 
 function isAnalyzeErrorCode(value: unknown): value is AnalyzeErrorCode {
   return typeof value === 'string' && (ANALYZE_ERROR_CODES as readonly string[]).includes(value)
 }
 
+/** Информация о провайдере для индикатора. При malformed ответе — undefined. */
+export async function fetchProviderInfo(options: AnalyzeRequestOptions = {}): Promise<ProviderInfoResponse | undefined> {
+  const fetchImpl = options.fetchImpl ?? fetch
+  try {
+    const response = await fetchImpl('/api/ai', { headers: { accept: 'application/json' }, signal: options.signal })
+    if (!response.ok) return undefined
+    const payload: unknown = await response.json()
+    return isProviderInfoResponse(payload) ? payload : undefined
+  } catch {
+    return undefined
+  }
+}
+
 /** Клиент вызывает только /api/ai: ключи и провайдерная логика живут на сервере. */
 export async function analyzeRequest(
   query: string,
+  history: ConversationMessage[] = [],
   options: AnalyzeRequestOptions = {},
 ): Promise<AnalyzeSuccessResponse> {
   const fetchImpl = options.fetchImpl ?? fetch
@@ -97,7 +136,7 @@ export async function analyzeRequest(
     response = await fetchImpl('/api/ai', {
       method: 'POST',
       headers: { 'content-type': 'application/json', accept: 'application/json' },
-      body: JSON.stringify({ query }),
+      body: JSON.stringify({ query, history }),
       signal: options.signal,
     })
   } catch (error) {
