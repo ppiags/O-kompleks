@@ -12,3 +12,4 @@ test-results
 .superpowers
 *.tsbuildinfo
 .DS_Store
+.env*

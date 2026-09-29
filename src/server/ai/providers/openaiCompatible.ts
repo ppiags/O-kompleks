@@ -1,4 +1,4 @@
-import { AiError } from '../errors'
+import { AiError } from '../errors.js'
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant'

@@ -7,12 +7,12 @@ import type {
   KnowledgeItem,
   KnowledgeMatch,
   ProviderInfoResponse,
-} from '../../shared/api/contracts'
-import { MIN_QUERY_LENGTH } from '../../shared/api/contracts'
-import knowledgeBaseJson from '../../shared/data/knowledge-base.json'
-import { retrieveKnowledge } from '../../shared/lib/retrieval'
-import { isAiError } from './errors'
-import { createAiProvider } from './providers'
+} from '../../shared/api/contracts.js'
+import { MIN_QUERY_LENGTH } from '../../shared/api/contracts.js'
+import knowledgeBaseJson from '../../shared/data/knowledge-base.json' with { type: 'json' }
+import { retrieveKnowledge } from '../../shared/lib/retrieval.js'
+import { isAiError } from './errors.js'
+import { createAiProvider } from './providers/index.js'
 
 const DEFAULT_KNOWLEDGE_BASE = knowledgeBaseJson as KnowledgeItem[]
 

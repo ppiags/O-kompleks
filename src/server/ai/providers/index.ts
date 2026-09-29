@@ -1,10 +1,10 @@
-import type { AiProvider } from '../../../shared/api/contracts'
-import { AiError } from '../errors'
-import { createDeepSeekProvider } from './deepseek'
-import { createMockProvider } from './mock'
-import { createOpenAiProvider } from './openai'
+import type { AiProvider } from '../../../shared/api/contracts.js'
+import { AiError } from '../errors.js'
+import { createDeepSeekProvider } from './deepseek.js'
+import { createMockProvider } from './mock.js'
+import { createOpenAiProvider } from './openai.js'
 
-export type { ProviderFactoryOptions } from './openai'
+export type { ProviderFactoryOptions } from './openai.js'
 
 /**
  * Выбирает провайдера по конфигурации окружения.

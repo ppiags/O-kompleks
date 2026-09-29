@@ -1,5 +1,5 @@
-import type { AiAnalysisInput, AiAnalysisResult, AiProvider, KnowledgeItem, ManagerUpsell } from '../../../shared/api/contracts'
-import { normalizeText } from '../../../shared/lib/normalize'
+import type { AiAnalysisInput, AiAnalysisResult, AiProvider, KnowledgeItem, ManagerUpsell } from '../../../shared/api/contracts.js'
+import { normalizeText } from '../../../shared/lib/normalize.js'
 
 /** Явные признаки обращения в поддержку: допродажа здесь неуместна. */
 const SUPPORT_SIGNALS = [

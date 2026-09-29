@@ -1,5 +1,5 @@
-import type { AiAnalysisInput, ConversationMessage, KnowledgeItem } from '../../shared/api/contracts'
-import type { ChatMessage } from './providers/openaiCompatible'
+import type { AiAnalysisInput, ConversationMessage, KnowledgeItem } from '../../shared/api/contracts.js'
+import type { ChatMessage } from './providers/openaiCompatible.js'
 
 const ROLE_LABELS: Record<ConversationMessage['role'], string> = {
   client: 'клиент',

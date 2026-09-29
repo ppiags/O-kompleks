@@ -1,6 +1,6 @@
-import type { AiAnalysisResult, KnowledgeItem } from '../../shared/api/contracts'
-import { AiError } from './errors'
-import { parseAiAnalysisResult } from './schema'
+import type { AiAnalysisResult, KnowledgeItem } from '../../shared/api/contracts.js'
+import { AiError } from './errors.js'
+import { parseAiAnalysisResult } from './schema.js'
 
 const CODE_FENCE = /^```(?:json)?\s*([\s\S]*?)\s*```$/i
 

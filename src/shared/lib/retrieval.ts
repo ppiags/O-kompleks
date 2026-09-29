@@ -1,5 +1,5 @@
-import type { KnowledgeItem, KnowledgeMatch } from '../api/contracts'
-import { normalizeText, tokenize } from './normalize'
+import type { KnowledgeItem, KnowledgeMatch } from '../api/contracts.js'
+import { normalizeText, tokenize } from './normalize.js'
 
 /** Веса полей: заголовок и ключевые слова важнее длинного текста статьи. */
 const FIELD_WEIGHTS = { title: 5, keywords: 4, category: 3, content: 1 } as const

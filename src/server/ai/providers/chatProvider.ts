@@ -1,7 +1,7 @@
-import type { AiAnalysisInput, AiAnalysisResult, AiProvider, AiProviderName } from '../../../shared/api/contracts'
-import { parseProviderResult } from '../parseProviderResult'
-import { buildPromptMessages } from '../prompt'
-import { requestChatCompletion } from './openaiCompatible'
+import type { AiAnalysisInput, AiAnalysisResult, AiProvider, AiProviderName } from '../../../shared/api/contracts.js'
+import { parseProviderResult } from '../parseProviderResult.js'
+import { buildPromptMessages } from '../prompt.js'
+import { requestChatCompletion } from './openaiCompatible.js'
 
 export interface ChatProviderConfig {
   name: AiProviderName

@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import type { AiAnalysisResult } from '../../shared/api/contracts'
+import type { AiAnalysisResult } from '../../shared/api/contracts.js'
 
 const nonEmptyString = z
   .string()

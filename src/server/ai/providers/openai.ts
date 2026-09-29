@@ -1,6 +1,6 @@
-import type { AiProvider } from '../../../shared/api/contracts'
-import { AiError } from '../errors'
-import { createChatProvider } from './chatProvider'
+import type { AiProvider } from '../../../shared/api/contracts.js'
+import { AiError } from '../errors.js'
+import { createChatProvider } from './chatProvider.js'
 
 const DEFAULT_BASE_URL = 'https://api.openai.com/v1'
 const DEFAULT_MODEL = 'gpt-4o-mini'

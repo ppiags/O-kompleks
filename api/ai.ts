@@ -1,5 +1,5 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node'
-import { handleAnalyzeRequest, handleProviderInfoRequest } from '../src/server/ai/handler'
+import { handleAnalyzeRequest, handleProviderInfoRequest } from '../src/server/ai/handler.js'
 
 /**
  * Тонкий serverless-слой Vercel. Вся провайдерная логика и API-ключи остаются

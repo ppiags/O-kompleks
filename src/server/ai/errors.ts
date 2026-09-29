@@ -1,4 +1,4 @@
-import type { AnalyzeErrorCode } from '../../shared/api/contracts'
+import type { AnalyzeErrorCode } from '../../shared/api/contracts.js'
 
 /** Ошибка уровня BFF: несёт безопасный для клиента код и текст без stack trace. */
 export class AiError extends Error {
